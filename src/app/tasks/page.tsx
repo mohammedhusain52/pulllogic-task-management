@@ -362,7 +362,7 @@ function TasksContent() {
                 )}
               >
                 <GitFork className="w-3.5 h-3.5" />
-                <span>Templates & Blueprints ({workflowTemplates.length})</span>
+                <span>Templates ({workflowTemplates.length})</span>
               </button>
             </div>
 
@@ -373,7 +373,7 @@ function TasksContent() {
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition',
                     viewMode === 'LIST'
-                      ? 'bg-indigo-600 text-white shadow'
+                      ? 'bg-slate-800 text-white shadow-sm'
                       : 'text-slate-400 hover:text-white'
                   )}
                 >
@@ -385,26 +385,26 @@ function TasksContent() {
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition',
                     viewMode === 'KANBAN'
-                      ? 'bg-indigo-600 text-white shadow'
+                      ? 'bg-slate-800 text-white shadow-sm'
                       : 'text-slate-400 hover:text-white'
                   )}
                 >
                   <Kanban className="w-3.5 h-3.5" />
-                  <span>Kanban</span>
+                  <span>Board</span>
                 </button>
               </div>
             )}
           </div>
 
-          {/* SUB-VIEW 1: PIPELINE RUNS */}
+          {/* SUB-VIEW 1: ACTIVE RUNS */}
           {workflowSubView === 'RUNS' && (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {workflowRuns.length === 0 ? (
-                <div className="p-12 rounded-2xl bg-slate-900/60 border border-white/10 text-center space-y-3">
-                  <GitFork className="w-10 h-10 text-cyan-400 mx-auto opacity-70" />
-                  <h3 className="text-base font-bold text-white">No Workflow Runs Active</h3>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    Instantiate your recurring data/ML workflow pipeline for Yanmar, CNH, or Zonar.
+                <div className="col-span-full p-12 text-center rounded-2xl bg-slate-900/60 border border-white/10 space-y-3">
+                  <GitFork className="w-8 h-8 text-cyan-400 mx-auto opacity-70" />
+                  <h3 className="text-sm font-bold text-white">No Active Workflow Pipelines</h3>
+                  <p className="text-xs text-slate-400">
+                    Launch a scheduled or ad-hoc pipeline execution from your defined templates.
                   </p>
                   <button
                     onClick={() => setRunWorkflowModalOpen(true)}
@@ -540,11 +540,19 @@ function TasksContent() {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={(e) => handleDeleteTemplate(e, tpl.id, tpl.name)}
-                        title="Delete Blueprint"
+                        title="Delete Template"
                         className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
+                      <Link
+                        href={`/workflows/builder?id=${tpl.id}`}
+                        title="Edit Template"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 transition"
+                      >
+                        <Edit className="w-3 h-3 text-cyan-400" />
+                        <span>Edit</span>
+                      </Link>
                       <button
                         onClick={() => setRunWorkflowModalOpen(true)}
                         className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition"

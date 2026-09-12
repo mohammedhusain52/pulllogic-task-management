@@ -120,17 +120,51 @@ export function TeamOverview({ team, onSelectTask }: TeamOverviewProps) {
                   {member.currentWork ? (
                     <div
                       onClick={() => onSelectTask && onSelectTask(member.currentWork)}
-                      className="p-2.5 rounded-xl bg-slate-950/80 border border-white/5 hover:border-indigo-500/30 cursor-pointer transition flex items-center justify-between"
+                      className={cn(
+                        'p-2.5 rounded-xl border cursor-pointer transition flex items-center justify-between',
+                        member.currentWork.status === 'BLOCKED'
+                          ? 'bg-rose-950/40 border-rose-500/40 hover:border-rose-500/70'
+                          : member.currentWork.status === 'WAITING_FOR_UPDATE'
+                          ? 'bg-amber-950/40 border-amber-500/40 hover:border-amber-500/70'
+                          : member.currentWork.status === 'IN_PROGRESS'
+                          ? 'bg-slate-950/80 border-white/10 hover:border-indigo-500/40'
+                          : 'bg-slate-950/60 border-white/5 hover:border-white/20'
+                      )}
                     >
                       <div className="overflow-hidden pr-2">
-                        <span className="text-xs font-bold text-slate-200 block truncate">
-                          {member.currentWork.title}
-                        </span>
-                        <span className="text-[10px] text-indigo-400">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {member.currentWork.status === 'BLOCKED' ? (
+                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                              BLOCKED
+                            </span>
+                          ) : member.currentWork.status === 'WAITING_FOR_UPDATE' ? (
+                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              WAITING
+                            </span>
+                          ) : member.currentWork.status === 'IN_PROGRESS' ? (
+                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                              ACTIVE
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                              PLANNED
+                            </span>
+                          )}
+                          <span className="text-xs font-bold text-slate-200 truncate">
+                            {member.currentWork.title}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">
                           {clientName} · {member.currentWork.environment || 'DEV'}
+                          {member.currentWork.blockReason && ` — "${member.currentWork.blockReason}"`}
                         </span>
                       </div>
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                      {member.currentWork.status === 'IN_PROGRESS' && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                      )}
+                      {member.currentWork.status === 'BLOCKED' && (
+                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping shrink-0" />
+                      )}
                     </div>
                   ) : (
                     <div className="p-2.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium flex items-center gap-2">

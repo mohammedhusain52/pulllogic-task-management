@@ -36,6 +36,13 @@ export async function GET() {
     const todayTasks = sortByPriority(rawTodayTasks).slice(0, 25);
 
     // Team Overview - Include all tasks to report every status
+    const unassignedTasks = await prisma.task.findMany({
+      where: {
+        assigneeId: null,
+      },
+      include: { client: true },
+    });
+
     const teamMembers = await prisma.teamMember.findMany({
       where: { active: true },
       include: {
@@ -53,16 +60,23 @@ export async function GET() {
     });
 
     const teamOverview = teamMembers.map((member) => {
-      const activeTasks = member.tasks.filter((t) => t.status === 'IN_PROGRESS');
-      const waitingTasks = member.tasks.filter((t) => t.status === 'WAITING_FOR_UPDATE');
-      const notStartedTasks = member.tasks.filter((t) => t.status === 'NOT_STARTED');
-      const blockedTasks = member.tasks.filter((t) => t.status === 'BLOCKED');
-      const completedTasks = member.tasks.filter((t) => t.status === 'COMPLETED');
-      const pendingTasks = member.tasks.filter(
+      const isLeadUser = member.name.toLowerCase().includes('mohammed');
+      const allMemberTasks = isLeadUser
+        ? [...member.tasks, ...unassignedTasks.filter((u) => !member.tasks.some((mt) => mt.id === u.id))]
+        : member.tasks;
+
+      const activeTasks = allMemberTasks.filter((t) => t.status === 'IN_PROGRESS');
+      const waitingTasks = allMemberTasks.filter((t) => t.status === 'WAITING_FOR_UPDATE');
+      const notStartedTasks = allMemberTasks.filter((t) => t.status === 'NOT_STARTED');
+      const blockedTasks = allMemberTasks.filter((t) => t.status === 'BLOCKED');
+      const completedTasks = allMemberTasks.filter((t) => t.status === 'COMPLETED');
+      const pendingTasks = allMemberTasks.filter(
         (t) => t.status === 'NOT_STARTED' || t.status === 'WAITING_FOR_UPDATE'
       );
 
-      const currentWork = activeTasks[0] || null;
+      // Focus task prioritizes active, then blocked, then waiting, then planned
+      const focusTask =
+        activeTasks[0] || blockedTasks[0] || waitingTasks[0] || notStartedTasks[0] || null;
 
       // Calculate time today
       const totalSecondsToday = member.timeEntries.reduce((acc, entry) => {
@@ -89,17 +103,21 @@ export async function GET() {
         blockedCount: blockedTasks.length,
         completedCount: completedTasks.length,
         pendingCount: pendingTasks.length,
-        totalCount: member.tasks.length,
-        currentWork: currentWork
+        totalCount: allMemberTasks.length,
+        currentWork: focusTask
           ? {
-              id: currentWork.id,
-              title: currentWork.title,
-              client: currentWork.client?.name || 'Internal',
-              environment: currentWork.environment,
+              id: focusTask.id,
+              title: focusTask.title,
+              client: focusTask.client?.name || 'Internal',
+              environment: focusTask.environment,
+              status: focusTask.status,
+              priority: focusTask.priority,
+              blockReason: focusTask.blockReason,
+              waitingReason: focusTask.waitingReason,
             }
           : null,
         timeToday: formattedTime,
-        isAvailable: activeTasks.length === 0,
+        isAvailable: activeTasks.length === 0 && blockedTasks.length === 0,
       };
     });
 

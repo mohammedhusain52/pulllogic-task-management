@@ -24,9 +24,19 @@ export async function GET() {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    const unassignedTasks = await prisma.task.findMany({
+      where: { assigneeId: null },
+      include: { client: true, workflowRun: true },
+    });
+
     const enriched = await Promise.all(
       members.map(async (member) => {
-        const sortedTasks = sortByPriority(member.tasks);
+        const isLeadUser = member.name.toLowerCase().includes('mohammed');
+        const allTasks = isLeadUser
+          ? [...member.tasks, ...unassignedTasks.filter((u) => !member.tasks.some((mt) => mt.id === u.id))]
+          : member.tasks;
+
+        const sortedTasks = sortByPriority(allTasks);
         const activeTasks = sortedTasks.filter((t) => t.status === 'IN_PROGRESS');
         const waitingTasks = sortedTasks.filter((t) => t.status === 'WAITING_FOR_UPDATE');
         const notStartedTasks = sortedTasks.filter((t) => t.status === 'NOT_STARTED');
@@ -49,7 +59,8 @@ export async function GET() {
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
 
-        const primaryActiveTask = activeTasks[0] || null;
+        const primaryFocusTask =
+          activeTasks[0] || blockedTasks[0] || waitingTasks[0] || notStartedTasks[0] || null;
 
         return {
           id: member.id,
@@ -66,15 +77,17 @@ export async function GET() {
           totalCount: sortedTasks.length,
           totalTimeSeconds: totalSeconds,
           totalTimeFormatted: `${hours}h ${minutes}m`,
-          currentWork: primaryActiveTask
+          currentWork: primaryFocusTask
             ? {
-                id: primaryActiveTask.id,
-                title: primaryActiveTask.title,
-                client: primaryActiveTask.client?.name || 'Internal',
-                environment: primaryActiveTask.environment || 'DEV',
+                id: primaryFocusTask.id,
+                title: primaryFocusTask.title,
+                client: primaryFocusTask.client?.name || 'Internal',
+                environment: primaryFocusTask.environment || 'DEV',
+                status: primaryFocusTask.status,
+                blockReason: primaryFocusTask.blockReason,
               }
             : null,
-          isAvailable: activeTasks.length === 0,
+          isAvailable: activeTasks.length === 0 && blockedTasks.length === 0,
           tasks: sortedTasks,
         };
       })

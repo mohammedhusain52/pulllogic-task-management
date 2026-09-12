@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AppLayout } from '@/components/layout/AppLayout';
 import {
@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Loader2,
   Layers,
+  Edit3,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -32,11 +33,16 @@ interface StageForm {
   taskTemplates: TaskTemplateForm[];
 }
 
-export default function WorkflowTemplateBuilderPage() {
+function WorkflowBuilderContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const templateId = searchParams.get('id');
+  const isEditing = Boolean(templateId);
+
   const [clients, setClients] = useState<any[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEditing);
 
   // Form State
   const [clientId, setClientId] = useState('');
@@ -76,6 +82,12 @@ export default function WorkflowTemplateBuilderPage() {
     fetchMetadata();
   }, []);
 
+  useEffect(() => {
+    if (templateId) {
+      fetchTemplateDetails(templateId);
+    }
+  }, [templateId]);
+
   const fetchMetadata = async () => {
     try {
       const [cRes, tRes] = await Promise.all([
@@ -85,11 +97,44 @@ export default function WorkflowTemplateBuilderPage() {
       if (cRes.ok) {
         const cData = await cRes.json();
         setClients(cData);
-        if (cData.length > 0) setClientId(cData[0].id);
+        if (cData.length > 0 && !clientId) setClientId(cData[0].id);
       }
       if (tRes.ok) setTeamMembers(await tRes.json());
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchTemplateDetails = async (id: string) => {
+    setInitialLoading(true);
+    try {
+      const res = await fetch(`/api/workflows/templates/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setClientId(data.clientId || '');
+        setName(data.name || '');
+        setDescription(data.description || '');
+        setRecurrence(data.recurrence || 'MONTHLY');
+
+        if (data.stages && data.stages.length > 0) {
+          setStages(
+            data.stages.map((st: any) => ({
+              name: st.name,
+              environment: st.environment,
+              taskTemplates: (st.taskTemplates || []).map((t: any) => ({
+                name: t.name,
+                description: t.description || '',
+                defaultAssigneeId: t.defaultAssigneeId || '',
+                estimatedMinutes: t.estimatedMinutes || 30,
+              })),
+            }))
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load template details:', err);
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -149,27 +194,34 @@ export default function WorkflowTemplateBuilderPage() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/workflows/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientId,
-          name: name.trim(),
-          description: description.trim(),
-          recurrence,
-          stages: stages.map((s, idx) => ({
-            name: s.name,
-            environment: s.environment,
-            sequence: idx + 1,
-            taskTemplates: s.taskTemplates.map((t, tIdx) => ({
-              name: t.name || `Task ${tIdx + 1}`,
-              description: t.description,
-              sequence: tIdx + 1,
-              defaultAssigneeId: t.defaultAssigneeId || null,
-              estimatedMinutes: Number(t.estimatedMinutes) || 30,
-            })),
+      const payload = {
+        clientId,
+        name: name.trim(),
+        description: description.trim(),
+        recurrence,
+        stages: stages.map((s, idx) => ({
+          name: s.name,
+          environment: s.environment,
+          sequence: idx + 1,
+          taskTemplates: s.taskTemplates.map((t, tIdx) => ({
+            name: t.name || `Task ${tIdx + 1}`,
+            description: t.description,
+            sequence: tIdx + 1,
+            defaultAssigneeId: t.defaultAssigneeId || null,
+            estimatedMinutes: Number(t.estimatedMinutes) || 30,
           })),
-        }),
+        })),
+      };
+
+      const url = isEditing
+        ? `/api/workflows/templates/${templateId}`
+        : '/api/workflows/templates';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -180,265 +232,282 @@ export default function WorkflowTemplateBuilderPage() {
       confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
       router.push('/tasks?type=WORKFLOW_STEP');
     } catch (err: any) {
-      alert(err.message || 'Error creating template');
+      alert(err.message || 'Error saving template');
     } finally {
       setLoading(false);
     }
   };
 
+  if (initialLoading) {
+    return (
+      <div className="p-16 text-center text-slate-400 space-y-2">
+        <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-400" />
+        <p className="text-xs">Loading Template Configuration...</p>
+      </div>
+    );
+  }
+
   return (
-    <AppLayout>
-      <div className="space-y-6 max-w-5xl mx-auto">
-        {/* Back Link */}
-        <Link
-          href="/tasks?type=WORKFLOW_STEP"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Workflows</span>
-        </Link>
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Back Link */}
+      <Link
+        href="/tasks?type=WORKFLOW_STEP"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span>Back to Workflows</span>
+      </Link>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/80 border border-white/10 backdrop-blur-md">
-            <div>
-              <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-                <FileCode className="w-6 h-6 text-cyan-400" />
-                <span>Workflow Template Builder</span>
-              </h1>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Design custom operational pipelines with stages, ordered tasks, dependencies, and cadences
-              </p>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition active:scale-95 disabled:opacity-50"
-            >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              <span>Save Workflow Blueprint</span>
-            </button>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/80 border border-white/10 backdrop-blur-md">
+          <div>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
+              <FileCode className="w-6 h-6 text-cyan-400" />
+              <span>{isEditing ? 'Edit Workflow Template' : 'Workflow Template Builder'}</span>
+            </h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Design custom operational pipelines with stages, ordered tasks, dependencies, and cadences
+            </p>
           </div>
 
-          {/* General Metadata Box */}
-          <div className="p-6 rounded-2xl bg-slate-900/80 border border-white/10 backdrop-blur-md space-y-4">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              1. General Blueprint Configuration
-            </h2>
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition active:scale-95 disabled:opacity-50"
+          >
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            <span>{isEditing ? 'Update Template' : 'Save Workflow Template'}</span>
+          </button>
+        </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Client *
-                </label>
-                <select
-                  required
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-white/10 text-white text-sm"
-                >
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        {/* General Metadata Box */}
+        <div className="p-6 rounded-2xl bg-slate-900/80 border border-white/10 backdrop-blur-md space-y-4">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            1. General Template Configuration
+          </h2>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Workflow Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Sales, Demand Forecast, Inventory"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-white/10 text-white text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Recurrence Schedule
-                </label>
-                <select
-                  value={recurrence}
-                  onChange={(e) => setRecurrence(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-white/10 text-white text-sm"
-                >
-                  <option value="MANUAL">Manual / On-Demand</option>
-                  <option value="DAILY">Daily</option>
-                  <option value="WEEKLY">Weekly</option>
-                  <option value="MONTHLY">Monthly</option>
-                  <option value="FIRST_THURSDAY_OF_MONTH">First Thursday of Month</option>
-                </select>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Client *
+              </label>
+              <select
+                required
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-white/10 text-white text-sm"
+              >
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Description / Purpose
+                Workflow Name *
               </label>
-              <textarea
-                rows={2}
-                placeholder="Explain the pipeline objective, data sources, and operational deliverables..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+              <input
+                type="text"
+                required
+                placeholder="e.g. Sales, Demand Forecast, Inventory"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-white/10 text-white text-sm"
               />
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Recurrence Schedule
+              </label>
+              <select
+                value={recurrence}
+                onChange={(e) => setRecurrence(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-white/10 text-white text-sm"
+              >
+                <option value="MANUAL">Manual / On-Demand</option>
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+                <option value="FIRST_THURSDAY_OF_MONTH">First Thursday of Month</option>
+              </select>
+            </div>
           </div>
 
-          {/* Stages & Ordered Task Templates */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">
+              Description / Purpose
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Explain the pipeline objective, data sources, and operational deliverables..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-white/10 text-white text-sm"
+            />
+          </div>
+        </div>
+
+        {/* Stages & Ordered Task Templates */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              2. Pipeline Stages & Ordered Subtasks
+            </h2>
+            <button
+              type="button"
+              onClick={handleAddStage}
+              className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-semibold"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Custom Stage</span>
+            </button>
+          </div>
+
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                2. Pipeline Stages & Ordered Subtasks
-              </h2>
-              <button
-                type="button"
-                onClick={handleAddStage}
-                className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-semibold"
+            {stages.map((stage, stageIdx) => (
+              <div
+                key={stageIdx}
+                className="p-5 rounded-2xl bg-slate-900/80 border border-white/10 backdrop-blur-md space-y-4"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Custom Stage</span>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {stages.map((stage, stageIdx) => (
-                <div
-                  key={stageIdx}
-                  className="p-5 rounded-2xl bg-slate-900/80 border border-white/10 backdrop-blur-md space-y-4"
-                >
-                  <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded-full bg-slate-800 text-cyan-300 font-mono text-xs flex items-center justify-center font-bold">
-                        {stageIdx + 1}
-                      </span>
-                      <input
-                        type="text"
-                        value={stage.name}
-                        onChange={(e) => {
-                          const updated = [...stages];
-                          updated[stageIdx].name = e.target.value;
-                          setStages(updated);
-                        }}
-                        className="font-bold text-sm text-white bg-slate-950 px-2.5 py-1 rounded-lg border border-white/10"
-                      />
-                      <select
-                        value={stage.environment}
-                        onChange={(e) => {
-                          const updated = [...stages];
-                          updated[stageIdx].environment = e.target.value;
-                          setStages(updated);
-                        }}
-                        className="text-xs bg-slate-950 border border-white/10 rounded-lg px-2.5 py-1 text-slate-300 font-mono"
-                      >
-                        <option value="DEV">DEV</option>
-                        <option value="QA">QA</option>
-                        <option value="PROD">PROD</option>
-                      </select>
-                    </div>
-
-                    {stages.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveStage(stageIdx)}
-                        className="text-slate-500 hover:text-rose-400 p-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded-full bg-slate-800 text-cyan-300 font-mono text-xs flex items-center justify-center font-bold">
+                      {stageIdx + 1}
+                    </span>
+                    <input
+                      type="text"
+                      value={stage.name}
+                      onChange={(e) => {
+                        const updated = [...stages];
+                        updated[stageIdx].name = e.target.value;
+                        setStages(updated);
+                      }}
+                      className="font-bold text-sm text-white bg-slate-950 px-2.5 py-1 rounded-lg border border-white/10"
+                    />
+                    <select
+                      value={stage.environment}
+                      onChange={(e) => {
+                        const updated = [...stages];
+                        updated[stageIdx].environment = e.target.value;
+                        setStages(updated);
+                      }}
+                      className="text-xs bg-slate-950 border border-white/10 rounded-lg px-2.5 py-1 text-slate-300 font-mono"
+                    >
+                      <option value="DEV">DEV</option>
+                      <option value="QA">QA</option>
+                      <option value="PROD">PROD</option>
+                    </select>
                   </div>
 
-                  {/* Task templates in stage */}
-                  <div className="space-y-2.5">
-                    {stage.taskTemplates.map((taskTpl, taskIdx) => (
-                      <div
-                        key={taskIdx}
-                        className="p-3 rounded-xl bg-slate-950 border border-white/5 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center"
-                      >
-                        <span className="text-xs font-mono text-slate-500 sm:col-span-1">
-                          #{taskIdx + 1}
-                        </span>
-
-                        <div className="sm:col-span-4">
-                          <input
-                            type="text"
-                            required
-                            placeholder="Task step title..."
-                            value={taskTpl.name}
-                            onChange={(e) => handleTaskChange(stageIdx, taskIdx, 'name', e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white text-xs"
-                          />
-                        </div>
-
-                        <div className="sm:col-span-3">
-                          <input
-                            type="text"
-                            placeholder="Details / description..."
-                            value={taskTpl.description}
-                            onChange={(e) => handleTaskChange(stageIdx, taskIdx, 'description', e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-slate-300 text-xs"
-                          />
-                        </div>
-
-                        <div className="sm:col-span-2">
-                          <select
-                            value={taskTpl.defaultAssigneeId || ''}
-                            onChange={(e) => handleTaskChange(stageIdx, taskIdx, 'defaultAssigneeId', e.target.value)}
-                            className="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-slate-300 text-xs"
-                          >
-                            <option value="">Default Assignee</option>
-                            {teamMembers.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="sm:col-span-1">
-                          <input
-                            type="number"
-                            placeholder="Mins"
-                            value={taskTpl.estimatedMinutes}
-                            onChange={(e) => handleTaskChange(stageIdx, taskIdx, 'estimatedMinutes', e.target.value)}
-                            className="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-slate-300 text-xs font-mono"
-                          />
-                        </div>
-
-                        <div className="sm:col-span-1 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTask(stageIdx, taskIdx)}
-                            className="text-slate-500 hover:text-rose-400 p-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-
+                  {stages.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => handleAddTask(stageIdx)}
-                      className="w-full py-2 rounded-xl border border-dashed border-white/15 hover:border-indigo-500/40 text-slate-400 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                      onClick={() => handleRemoveStage(stageIdx)}
+                      className="text-slate-500 hover:text-rose-400 p-1"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Step to {stage.name} Stage</span>
+                      <Trash2 className="w-4 h-4" />
                     </button>
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
+
+                {/* Task templates in stage */}
+                <div className="space-y-2.5">
+                  {stage.taskTemplates.map((taskTpl, taskIdx) => (
+                    <div
+                      key={taskIdx}
+                      className="p-3 rounded-xl bg-slate-950 border border-white/5 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center"
+                    >
+                      <span className="text-xs font-mono text-slate-500 sm:col-span-1">
+                        #{taskIdx + 1}
+                      </span>
+
+                      <div className="sm:col-span-4">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Task step title..."
+                          value={taskTpl.name}
+                          onChange={(e) => handleTaskChange(stageIdx, taskIdx, 'name', e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <input
+                          type="text"
+                          placeholder="Details / description..."
+                          value={taskTpl.description}
+                          onChange={(e) => handleTaskChange(stageIdx, taskIdx, 'description', e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-slate-300 text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <select
+                          value={taskTpl.defaultAssigneeId || ''}
+                          onChange={(e) => handleTaskChange(stageIdx, taskIdx, 'defaultAssigneeId', e.target.value)}
+                          className="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-slate-300 text-xs"
+                        >
+                          <option value="">Default Assignee</option>
+                          {teamMembers.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-1">
+                        <input
+                          type="number"
+                          placeholder="Mins"
+                          value={taskTpl.estimatedMinutes}
+                          onChange={(e) => handleTaskChange(stageIdx, taskIdx, 'estimatedMinutes', e.target.value)}
+                          className="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-slate-300 text-xs font-mono"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTask(stageIdx, taskIdx)}
+                          className="text-slate-500 hover:text-rose-400 p-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddTask(stageIdx)}
+                    className="w-full py-2 rounded-xl border border-dashed border-white/15 hover:border-indigo-500/40 text-slate-400 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Step to {stage.name} Stage</span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        </form>
-      </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export default function WorkflowTemplateBuilderPage() {
+  return (
+    <AppLayout>
+      <Suspense fallback={<div className="p-16 text-center text-slate-400">Loading Builder...</div>}>
+        <WorkflowBuilderContent />
+      </Suspense>
     </AppLayout>
   );
 }

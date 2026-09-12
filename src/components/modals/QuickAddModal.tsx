@@ -69,7 +69,14 @@ export function QuickAddModal({
         fetch('/api/team'),
       ]);
       if (cRes.ok) setClients(await cRes.json());
-      if (tRes.ok) setTeamMembers(await tRes.json());
+      if (tRes.ok) {
+        const tData = await tRes.json();
+        setTeamMembers(tData);
+        const selfMember = tData.find((m: any) => m.name?.toLowerCase().includes('mohammed'));
+        if (selfMember) {
+          setAssigneeId(selfMember.id);
+        }
+      }
     } catch (err) {
       console.error(err);
     }
@@ -79,7 +86,8 @@ export function QuickAddModal({
     setTitle('');
     setDescription('');
     setClientId('');
-    setAssigneeId('');
+    const selfMember = teamMembers.find((m: any) => m.name?.toLowerCase().includes('mohammed'));
+    setAssigneeId(selfMember?.id || '');
     setPriority('MEDIUM');
     setSeverity('HIGH');
     setEnvironment('DEV');
@@ -282,10 +290,10 @@ export function QuickAddModal({
                     onChange={(e) => setAssigneeId(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="">Mohammed Husain (Self / Unassigned)</option>
+                    <option value="">Unassigned</option>
                     {teamMembers.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.name} ({m.role})
+                        {m.name} {m.name?.toLowerCase().includes('mohammed') ? '(You)' : `(${m.role || 'Member'})`}
                       </option>
                     ))}
                   </select>
