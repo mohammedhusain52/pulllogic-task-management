@@ -63,20 +63,22 @@ export function FollowUpSection({
         <div className="flex items-center gap-2">
           <span className="flex h-2.5 w-2.5 rounded-full bg-rose-500 animate-ping" />
           <h2 className="text-sm font-bold uppercase tracking-wider text-rose-300">
-            Follow-ups Required 🔴
+            Follow-ups & Blockers Required 🔴
           </h2>
           <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
             {followUps.length} Pending
           </span>
         </div>
         <span className="text-xs text-slate-400">
-          Threshold: &gt;1 day waiting
+          Critical attention & blockers
         </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {followUps.map((task) => {
-          const isCritical = task.priority === 'CRITICAL' || task.status === 'BLOCKED';
+          const isBlocked = task.status === 'BLOCKED';
+          const isCritical = task.priority === 'CRITICAL';
+          const isWaiting = task.status === 'WAITING_FOR_UPDATE';
           const stageProgression = task.workflowRun ? `${task.environment || 'DEV'} → QA` : null;
 
           return (
@@ -85,22 +87,41 @@ export function FollowUpSection({
               onClick={() => onSelectTask(task)}
               className={cn(
                 'p-4 rounded-2xl border transition-all duration-200 cursor-pointer text-left relative overflow-hidden backdrop-blur-md',
-                isCritical
-                  ? 'bg-rose-950/20 border-rose-500/30 hover:border-rose-500/60 shadow-lg shadow-rose-950/30'
-                  : 'bg-amber-950/20 border-amber-500/30 hover:border-amber-500/60 shadow-lg shadow-amber-950/30'
+                isBlocked
+                  ? 'bg-rose-950/30 border-rose-500/40 hover:border-rose-500/70 shadow-lg shadow-rose-950/40'
+                  : isCritical
+                  ? 'bg-amber-950/30 border-amber-500/40 hover:border-amber-500/70 shadow-lg shadow-amber-950/40'
+                  : 'bg-slate-900/60 border-white/10 hover:border-indigo-500/40'
               )}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">{isCritical ? '🔴' : '🟡'}</span>
+                <div className="flex items-start gap-2.5">
+                  <span className="text-base mt-0.5">
+                    {isBlocked ? '🔴' : isCritical ? '⚡' : '🟡'}
+                  </span>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-bold text-white">
                         {task.client?.name || 'Operations'} — {task.title}
                       </span>
+                      {isBlocked && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold uppercase bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                          BLOCKED
+                        </span>
+                      )}
+                      {isCritical && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          CRITICAL
+                        </span>
+                      )}
+                      {isWaiting && !isBlocked && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold uppercase bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
+                          WAITING
+                        </span>
+                      )}
                     </div>
                     {task.workflowRun && (
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[11px] text-slate-400 block mt-0.5">
                         Workflow: {task.workflowRun.name}
                       </span>
                     )}
@@ -120,7 +141,7 @@ export function FollowUpSection({
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs pt-3 border-t border-white/5">
                 <div>
                   <span className="text-[10px] uppercase font-semibold text-slate-400 block">
-                    Waiting for
+                    {isBlocked ? 'Assigned / Owner' : 'Waiting for'}
                   </span>
                   <span className="font-bold text-slate-200">
                     {task.waitingForName || task.waitingForType || task.assignee?.name || 'Testing Team'}
@@ -138,17 +159,22 @@ export function FollowUpSection({
 
                 <div>
                   <span className="text-[10px] uppercase font-semibold text-slate-400 block">
-                    Waiting since
+                    {isBlocked ? 'Blocked Since' : 'Waiting since'}
                   </span>
                   <span className="text-slate-300 font-mono">
-                    {formatDateRelative(task.waitingSince)}
+                    {formatDateRelative(task.waitingSince || task.createdAt)}
                   </span>
                 </div>
               </div>
 
-              {task.waitingReason && (
-                <div className="mt-2 text-[11px] text-slate-300 italic bg-black/20 p-2 rounded-lg">
-                  "{task.waitingReason}"
+              {(task.blockReason || task.waitingReason || task.description) && (
+                <div className="mt-2.5 text-[11px] text-slate-300 bg-black/30 p-2.5 rounded-xl border border-white/5">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-0.5">
+                    {isBlocked ? 'Block Reason / Diagnostic Note:' : 'Follow-up Note:'}
+                  </span>
+                  <span className="italic">
+                    "{task.blockReason || task.waitingReason || task.description}"
+                  </span>
                 </div>
               )}
             </div>

@@ -7,14 +7,23 @@ export async function getFollowUpsRequired() {
   const thresholdDays = parseInt(thresholdSetting?.value || '1', 10);
   const cutoffDate = new Date(Date.now() - thresholdDays * 24 * 60 * 60 * 1000);
 
-  // 1. Tasks in WAITING_FOR_UPDATE where waitingSince <= cutoffDate OR followUpDate <= now
-  const waitingTasks = await prisma.task.findMany({
+  // Follow-ups include:
+  // 1. All tasks with status 'BLOCKED' (unblock action required)
+  // 2. Tasks with priority 'CRITICAL' (requiring urgent follow-up / attention)
+  // 3. Tasks in 'WAITING_FOR_UPDATE'
+  // 4. Tasks with followUpDate <= now
+  const followUpTasks = await prisma.task.findMany({
     where: {
-      status: 'WAITING_FOR_UPDATE',
+      status: { notIn: ['COMPLETED', 'CANCELLED'] },
       OR: [
-        { waitingSince: { lte: cutoffDate } },
+        { status: 'BLOCKED' },
+        { priority: 'CRITICAL' },
+        { status: 'WAITING_FOR_UPDATE' },
         { followUpDate: { lte: new Date() } },
-        { waitingSince: null }, // default if waiting
+        {
+          status: 'WAITING_FOR_UPDATE',
+          waitingSince: { lte: cutoffDate },
+        },
       ],
     },
     include: {
@@ -22,10 +31,13 @@ export async function getFollowUpsRequired() {
       assignee: true,
       workflowRun: true,
     },
-    orderBy: { waitingSince: 'asc' },
+    orderBy: [
+      { priority: 'desc' },
+      { createdAt: 'desc' },
+    ],
   });
 
-  return waitingTasks;
+  return followUpTasks;
 }
 
 export async function getDashboardMetrics() {
