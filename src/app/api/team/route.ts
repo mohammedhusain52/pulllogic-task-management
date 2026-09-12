@@ -1,0 +1,124 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { logActivity } from '@/lib/services/activityService';
+
+export async function GET() {
+  try {
+    const members = await prisma.teamMember.findMany({
+      where: { active: true },
+      include: {
+        tasks: {
+          where: {
+            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          },
+          include: {
+            client: true,
+            workflowRun: true,
+          },
+          orderBy: { priority: 'desc' },
+        },
+        timeEntries: {
+          orderBy: { startedAt: 'desc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const enriched = await Promise.all(
+      members.map(async (member) => {
+        const activeTasks = member.tasks.filter((t) => t.status === 'IN_PROGRESS');
+        const pendingTasks = member.tasks.filter((t) => t.status === 'NOT_STARTED' || t.status === 'WAITING_FOR_UPDATE');
+        const blockedTasks = member.tasks.filter((t) => t.status === 'BLOCKED');
+
+        const completedThisMonth = await prisma.task.count({
+          where: {
+            assigneeId: member.id,
+            status: 'COMPLETED',
+            completedAt: { gte: startOfMonth },
+          },
+        });
+
+        // Calculate total time logged
+        const totalSeconds = member.timeEntries.reduce((acc, entry) => {
+          if (entry.durationSeconds) return acc + entry.durationSeconds;
+          if (entry.isRunning) {
+            const currentSession = Math.floor((Date.now() - entry.startedAt.getTime()) / 1000);
+            return acc + currentSession;
+          }
+          return acc;
+        }, 0);
+
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+        const primaryActiveTask = activeTasks[0] || null;
+
+        return {
+          id: member.id,
+          name: member.name,
+          role: member.role,
+          email: member.email,
+          avatarColor: member.avatarColor,
+          activeCount: activeTasks.length,
+          pendingCount: pendingTasks.length,
+          blockedCount: blockedTasks.length,
+          completedCount: completedThisMonth,
+          totalTimeSeconds: totalSeconds,
+          totalTimeFormatted: `${hours}h ${minutes}m`,
+          currentWork: primaryActiveTask ? {
+            id: primaryActiveTask.id,
+            title: primaryActiveTask.title,
+            client: primaryActiveTask.client?.name || 'Internal',
+            environment: primaryActiveTask.environment || 'DEV',
+          } : null,
+          isAvailable: activeTasks.length === 0,
+          tasks: member.tasks,
+        };
+      })
+    );
+
+    return NextResponse.json(enriched);
+  } catch (error) {
+    console.error('Error fetching team members:', error);
+    return NextResponse.json({ error: 'Failed to fetch team' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { name, role, email, avatarColor = 'indigo' } = body;
+
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    }
+
+    const member = await prisma.teamMember.create({
+      data: {
+        name: name.trim(),
+        role: role?.trim() || 'Data / ML Operations',
+        email: email?.trim() || null,
+        avatarColor,
+        active: true,
+      },
+    });
+
+    await logActivity({
+      entityType: 'TEAM_MEMBER',
+      entityId: member.id,
+      action: 'CREATED',
+      newValue: member.name,
+    });
+
+    return NextResponse.json(member, { status: 201 });
+  } catch (error) {
+    console.error('Error creating team member:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to create team member' },
+      { status: 400 }
+    );
+  }
+}

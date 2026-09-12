@@ -1,0 +1,233 @@
+// Prisma schema for Pull Logic — Operations Dashboard
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique @default("mohammed")
+  name         String   @default("Mohammed Husain")
+  role         String   @default("Senior Data Scientist")
+  organization String   @default("Pull Logic")
+  email        String   @default("mohammed@pulllogic.com")
+  passwordHash String?
+  passwordSalt String?
+  avatar       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model TeamMember {
+  id          String       @id @default(cuid())
+  name        String
+  role        String?      @default("Data / ML Operations")
+  email       String?
+  avatarColor String?      @default("indigo")
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  tasks       Task[]
+  timeEntries TimeEntry[]
+}
+
+model Client {
+  id                String             @id @default(cuid())
+  name              String             @unique
+  description       String?
+  active            Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  workflowTemplates WorkflowTemplate[]
+  workflowRuns      WorkflowRun[]
+  tasks             Task[]
+}
+
+model WorkflowTemplate {
+  id          String          @id @default(cuid())
+  clientId    String
+  client      Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  recurrence  String          @default("MANUAL") // MANUAL, DAILY, WEEKLY, MONTHLY, FIRST_THURSDAY_OF_MONTH
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  stages      WorkflowStage[]
+  runs        WorkflowRun[]
+}
+
+model WorkflowStage {
+  id                 String             @id @default(cuid())
+  workflowTemplateId String
+  workflowTemplate   WorkflowTemplate   @relation(fields: [workflowTemplateId], references: [id], onDelete: Cascade)
+  name               String             // DEV, QA, PROD, or custom
+  sequence           Int                @default(1)
+  environment        String             @default("DEV") // DEV, QA, PROD
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  taskTemplates      TaskTemplate[]
+  tasks              Task[]
+}
+
+model TaskTemplate {
+  id                       String        @id @default(cuid())
+  workflowStageId          String
+  workflowStage            WorkflowStage @relation(fields: [workflowStageId], references: [id], onDelete: Cascade)
+  name                     String
+  description              String?
+  sequence                 Int           @default(1)
+  defaultAssigneeId        String?
+  required                 Boolean       @default(true)
+  estimatedMinutes         Int?          @default(30)
+  dependsOnTaskTemplateId  String?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+}
+
+model WorkflowRun {
+  id                 String           @id @default(cuid())
+  workflowTemplateId String
+  workflowTemplate   WorkflowTemplate @relation(fields: [workflowTemplateId], references: [id], onDelete: Cascade)
+  clientId           String
+  client             Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name               String           // e.g. "Yanmar Sales — September 2026"
+  period             String           // e.g. "September 2026"
+  status             String           @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, WAITING_FOR_UPDATE, BLOCKED, COMPLETED, CANCELLED
+  currentStage       String           @default("DEV") // DEV, QA, PROD, COMPLETED
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  tasks              Task[]
+}
+
+model Task {
+  id                 String         @id @default(cuid())
+  workflowRunId      String?
+  workflowRun        WorkflowRun?   @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  stageId            String?
+  stage              WorkflowStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  clientId           String?
+  client             Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  parentTaskId       String?
+  parentTask         Task?          @relation("SubTasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subTasks           Task[]         @relation("SubTasks")
+  
+  title              String
+  description        String?
+  type               String         @default("TASK") // TASK, BUG, ISSUE, FEATURE, WORKFLOW_STEP
+  status             String         @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, WAITING_FOR_UPDATE, BLOCKED, COMPLETED, CANCELLED
+  priority           String         @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  severity           String?        // LOW, MEDIUM, HIGH, CRITICAL (for bugs)
+  environment        String?        @default("DEV") // DEV, QA, PROD
+  
+  assigneeId         String?
+  assignee           TeamMember?    @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  
+  dueDate            DateTime?
+  startDate          DateTime?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  totalTimeSeconds   Int            @default(0)
+  
+  // Waiting & Follow-up State
+  waitingForType     String?        // CLIENT, TESTING_TEAM, TEAM_MEMBER, OTHER
+  waitingForId       String?
+  waitingForName     String?
+  waitingSince       DateTime?
+  followUpDate       DateTime?
+  waitingReason      String?
+  
+  // Blocker Info
+  blockReason        String?
+  
+  // Bug & Feature specific metadata
+  stepsToReproduce   String?
+  expectedBehavior   String?
+  actualBehavior     String?
+  targetRelease      String?
+  requirements       String?
+  
+  // Sequence and dependency tracking
+  sequence           Int            @default(1)
+  dependsOnTaskId    String?
+  dependsOnTask      Task?          @relation("TaskDependencies", fields: [dependsOnTaskId], references: [id], onDelete: SetNull)
+  dependentTasks     Task[]         @relation("TaskDependencies")
+  isOverridden       Boolean        @default(false)
+  overrideReason     String?
+  
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  
+  timeEntries        TimeEntry[]
+}
+
+model Comment {
+  id          String   @id @default(cuid())
+  entityType  String   // TASK, BUG, ISSUE, FEATURE, WORKFLOW_RUN, CLIENT
+  entityId    String
+  authorName  String   @default("Mohammed Husain")
+  content     String
+  createdAt   DateTime @default(now())
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  entityType  String   // TASK, BUG, ISSUE, FEATURE, WORKFLOW_RUN
+  entityId    String
+  fileName    String
+  fileUrl     String
+  mimeType    String?
+  size        Int?     @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model TimeEntry {
+  id              String      @id @default(cuid())
+  taskId          String
+  task            Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  teamMemberId    String?
+  teamMember      TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
+  startedAt       DateTime    @default(now())
+  endedAt         DateTime?
+  durationSeconds Int         @default(0)
+  isRunning       Boolean     @default(false)
+  note            String?
+  createdAt       DateTime    @default(now())
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  entityType  String   // TASK, BUG, ISSUE, FEATURE, WORKFLOW_RUN, WORKFLOW_TEMPLATE, CLIENT, TEAM_MEMBER
+  entityId    String
+  action      String   // CREATED, STATUS_CHANGED, ASSIGNED, STAGE_CHANGED, PRIORITY_CHANGED, BLOCKED, FOLLOW_UP_SET, COMMENT_ADDED, ATTACHMENT_ADDED, TIMER_STARTED, TIMER_STOPPED, OVERRIDDEN, COMPLETED
+  oldValue    String?
+  newValue    String?
+  metadata    String?  // JSON string
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  type        String   // TASK_DUE, TASK_OVERDUE, FOLLOW_UP_REQUIRED, TASK_BLOCKED, WORKFLOW_WAITING, ASSIGNMENT, WORKFLOW_COMPLETED
+  title       String
+  message     String
+  entityType  String?
+  entityId    String?
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

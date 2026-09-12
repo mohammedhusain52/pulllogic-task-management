@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
+  <!-- Pull Logic Geometric Logo Mark -->
+  <!-- Top-Left Square -->
+  <rect x="0" y="0" width="16" height="16" fill="#C88330" />
+  <!-- Top-Right Square -->
+  <rect x="16" y="0" width="16" height="16" fill="#603916" />
+  <!-- Bottom-Left Square -->
+  <rect x="0" y="16" width="16" height="16" fill="#F5B44E" />
+</svg>
