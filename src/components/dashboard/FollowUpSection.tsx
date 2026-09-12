@@ -139,12 +139,28 @@ export function FollowUpSection({
 
               {/* Info Matrix */}
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs pt-3 border-t border-white/5">
-                <div>
-                  <span className="text-[10px] uppercase font-semibold text-slate-400 block">
-                    {isBlocked ? 'Assigned / Owner' : 'Waiting for'}
+                <div className="min-w-0">
+                  <span className="text-[10px] uppercase font-semibold text-slate-400 block truncate">
+                    {isBlocked ? 'Blocked Reason' : isWaiting ? 'Waiting for' : 'Owner / Attention'}
                   </span>
-                  <span className="font-bold text-slate-200">
-                    {task.waitingForName || task.waitingForType || task.assignee?.name || 'Testing Team'}
+                  <span
+                    className={cn(
+                      'font-bold block truncate',
+                      isBlocked ? 'text-rose-300' : 'text-slate-200'
+                    )}
+                    title={
+                      isBlocked
+                        ? (task.blockReason || task.waitingReason || task.description || 'Blocked - No reason specified')
+                        : isWaiting
+                        ? (task.waitingForName || (task.waitingForType ? task.waitingForType.replace(/_/g, ' ') : null) || task.assignee?.name || 'Pending assignment')
+                        : (task.assignee?.name || 'Critical Priority')
+                    }
+                  >
+                    {isBlocked
+                      ? (task.blockReason || task.waitingReason || task.description || 'Blocked - No reason specified')
+                      : isWaiting
+                      ? (task.waitingForName || (task.waitingForType ? task.waitingForType.replace(/_/g, ' ') : null) || task.assignee?.name || 'Pending assignment')
+                      : (task.assignee?.name || 'Critical Priority')}
                   </span>
                 </div>
 
@@ -167,13 +183,15 @@ export function FollowUpSection({
                 </div>
               </div>
 
-              {(task.blockReason || task.waitingReason || task.description) && (
+              {((isBlocked && task.description && task.description !== task.blockReason) ||
+                (isWaiting && task.waitingReason) ||
+                (!isBlocked && !isWaiting && task.description)) && (
                 <div className="mt-2.5 text-[11px] text-slate-300 bg-black/30 p-2.5 rounded-xl border border-white/5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-0.5">
-                    {isBlocked ? 'Block Reason / Diagnostic Note:' : 'Follow-up Note:'}
+                    {isBlocked ? 'Diagnostic / Description Note:' : isWaiting ? 'Follow-up Note:' : 'Details:'}
                   </span>
-                  <span className="italic">
-                    "{task.blockReason || task.waitingReason || task.description}"
+                  <span className="italic line-clamp-2">
+                    "{isBlocked ? task.description : isWaiting ? task.waitingReason : task.description}"
                   </span>
                 </div>
               )}

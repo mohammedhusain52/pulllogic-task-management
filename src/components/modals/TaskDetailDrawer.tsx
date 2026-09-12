@@ -486,7 +486,10 @@ export function TaskDetailDrawer({
                       )}
                     </div>
                     <div className="text-xs text-amber-200">
-                      <strong>Waiting for:</strong> {task.waitingForName || task.waitingForType || 'Team'}
+                      <strong>Waiting for:</strong>{' '}
+                      {task.waitingForName ||
+                        (task.waitingForType ? task.waitingForType.replace(/_/g, ' ') : null) ||
+                        'Unassigned'}
                     </div>
                     {task.waitingReason && (
                       <div className="text-xs text-slate-300 italic">
