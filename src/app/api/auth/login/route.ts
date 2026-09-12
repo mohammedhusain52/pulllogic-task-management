@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, ensureBaselineData } from '@/lib/db';
 import { verifyPassword, createSessionToken, AUTH_COOKIE_NAME, hashPassword } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureBaselineData();
     const body = await req.json();
     const { username, password } = body;
 

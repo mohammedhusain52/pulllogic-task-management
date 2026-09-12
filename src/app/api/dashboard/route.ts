@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, ensureBaselineData } from '@/lib/db';
 import { getDashboardMetrics, getFollowUpsRequired } from '@/lib/services/followUpService';
 import { syncAutomatedNotifications } from '@/lib/services/notificationService';
 
 export async function GET() {
   try {
+    await ensureBaselineData();
     // Run automated notification check
     await syncAutomatedNotifications();
 
