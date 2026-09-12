@@ -120,7 +120,7 @@ export function Header({ onOpenQuickAdd, onOpenSearch, onOpenRunWorkflow }: Head
       <div className="flex flex-col">
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold tracking-tight text-white">
-            Good Morning, Mohammed
+            Hello Mohammed
           </h1>
           <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
             <Sparkles className="w-3 h-3 mr-1" />
