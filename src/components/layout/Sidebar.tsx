@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/tasks', label: 'My Tasks', icon: CheckSquare },
+  { href: '/tasks', label: 'Tasks', icon: CheckSquare },
   { href: '/team', label: 'Team', icon: Users },
   { href: '/clients', label: 'Clients', icon: Building2 },
   { href: '/calendar', label: 'Calendar', icon: Calendar },

@@ -28,7 +28,7 @@ export function SummaryCards({ metrics, onFilterClick }: SummaryCardsProps) {
   const cards = [
     {
       key: 'active',
-      title: 'My Tasks',
+      title: 'Tasks',
       value: metrics.active,
       subtitle: 'Active workload',
       icon: CheckSquare,

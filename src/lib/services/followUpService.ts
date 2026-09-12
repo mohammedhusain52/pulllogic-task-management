@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { sortByPriority } from '@/lib/utils';
 
 export async function getFollowUpsRequired() {
   const thresholdSetting = await prisma.systemSetting.findUnique({
@@ -31,13 +32,9 @@ export async function getFollowUpsRequired() {
       assignee: true,
       workflowRun: true,
     },
-    orderBy: [
-      { priority: 'desc' },
-      { createdAt: 'desc' },
-    ],
   });
 
-  return followUpTasks;
+  return sortByPriority(followUpTasks);
 }
 
 export async function getDashboardMetrics() {

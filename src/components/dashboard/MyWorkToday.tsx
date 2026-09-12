@@ -18,6 +18,7 @@ import {
   getStatusBadge,
   getPriorityBadge,
   getEnvironmentBadge,
+  sortByPriority,
   cn,
 } from '@/lib/utils';
 import confetti from 'canvas-confetti';
@@ -29,6 +30,8 @@ interface MyWorkTodayProps {
 }
 
 export function MyWorkToday({ tasks, onSelectTask, onRefresh }: MyWorkTodayProps) {
+  const sortedTasks = sortByPriority(tasks);
+
   const handleToggleComplete = async (e: React.MouseEvent, task: any) => {
     e.stopPropagation();
     const nextStatus = task.status === 'COMPLETED' ? 'NOT_STARTED' : 'COMPLETED';
@@ -73,29 +76,29 @@ export function MyWorkToday({ tasks, onSelectTask, onRefresh }: MyWorkTodayProps
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-            My Work Today
+            Ongoing Tasks
           </h2>
           <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-300">
-            {tasks.length}
+            {sortedTasks.length}
           </span>
         </div>
         <span className="text-xs text-slate-400">
-          Sorted by priority & deadline
+          Sorted: Critical → High → Medium → Low
         </span>
       </div>
 
-      {tasks.length === 0 ? (
+      {sortedTasks.length === 0 ? (
         <div className="p-8 rounded-2xl bg-slate-900/60 border border-white/10 text-center space-y-2">
           <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto opacity-70" />
           <h3 className="text-sm font-bold text-white">🎉 You're all caught up!</h3>
           <p className="text-xs text-slate-400">
-            No active tasks currently pending for today.
+            No active ongoing tasks currently pending.
           </p>
         </div>
       ) : (
         <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-white/10 backdrop-blur-md shadow-inner">
           <div className="max-h-[380px] overflow-y-auto pr-1.5 space-y-2.5">
-            {tasks.map((task) => {
+            {sortedTasks.map((task) => {
               const statusBadge = getStatusBadge(task.status);
               const priorityBadge = getPriorityBadge(task.priority);
               const envBadge = getEnvironmentBadge(task.environment);

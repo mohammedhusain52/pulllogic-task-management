@@ -174,20 +174,28 @@ function TeamContent() {
               </div>
 
               {/* Status Chips */}
-              <div className="flex items-center gap-2 text-xs flex-wrap">
+              <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
                 <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
-                  🟢 {member.activeCount} Active
+                  🟢 {member.activeCount ?? 0} Active
                 </span>
                 <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
-                  🟡 {member.pendingCount} Pending
+                  🟡 {member.waitingCount ?? member.pendingCount ?? 0} Waiting
                 </span>
-                {member.blockedCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 font-semibold">
-                    🔴 {member.blockedCount} Blocked
-                  </span>
-                )}
-                <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-semibold">
-                  ✓ {member.completedCount} done this month
+                <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 font-semibold">
+                  ⚪ {member.notStartedCount ?? 0} Not Started
+                </span>
+                <span
+                  className={cn(
+                    'px-2 py-0.5 rounded-md border font-semibold',
+                    (member.blockedCount ?? 0) > 0
+                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
+                      : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                  )}
+                >
+                  🔴 {member.blockedCount ?? 0} Blocked
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-300 border border-teal-500/20 font-semibold">
+                  ✓ {member.completedCount ?? 0} Done
                 </span>
               </div>
 

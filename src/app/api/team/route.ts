@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { logActivity } from '@/lib/services/activityService';
+import { sortByPriority } from '@/lib/utils';
 
 export async function GET() {
   try {
@@ -8,14 +9,10 @@ export async function GET() {
       where: { active: true },
       include: {
         tasks: {
-          where: {
-            status: { notIn: ['COMPLETED', 'CANCELLED'] },
-          },
           include: {
             client: true,
             workflowRun: true,
           },
-          orderBy: { priority: 'desc' },
         },
         timeEntries: {
           orderBy: { startedAt: 'desc' },
@@ -29,17 +26,15 @@ export async function GET() {
 
     const enriched = await Promise.all(
       members.map(async (member) => {
-        const activeTasks = member.tasks.filter((t) => t.status === 'IN_PROGRESS');
-        const pendingTasks = member.tasks.filter((t) => t.status === 'NOT_STARTED' || t.status === 'WAITING_FOR_UPDATE');
-        const blockedTasks = member.tasks.filter((t) => t.status === 'BLOCKED');
-
-        const completedThisMonth = await prisma.task.count({
-          where: {
-            assigneeId: member.id,
-            status: 'COMPLETED',
-            completedAt: { gte: startOfMonth },
-          },
-        });
+        const sortedTasks = sortByPriority(member.tasks);
+        const activeTasks = sortedTasks.filter((t) => t.status === 'IN_PROGRESS');
+        const waitingTasks = sortedTasks.filter((t) => t.status === 'WAITING_FOR_UPDATE');
+        const notStartedTasks = sortedTasks.filter((t) => t.status === 'NOT_STARTED');
+        const blockedTasks = sortedTasks.filter((t) => t.status === 'BLOCKED');
+        const completedTasks = sortedTasks.filter((t) => t.status === 'COMPLETED');
+        const pendingTasks = sortedTasks.filter(
+          (t) => t.status === 'NOT_STARTED' || t.status === 'WAITING_FOR_UPDATE'
+        );
 
         // Calculate total time logged
         const totalSeconds = member.timeEntries.reduce((acc, entry) => {
@@ -63,19 +58,24 @@ export async function GET() {
           email: member.email,
           avatarColor: member.avatarColor,
           activeCount: activeTasks.length,
-          pendingCount: pendingTasks.length,
+          waitingCount: waitingTasks.length,
+          notStartedCount: notStartedTasks.length,
           blockedCount: blockedTasks.length,
-          completedCount: completedThisMonth,
+          completedCount: completedTasks.length,
+          pendingCount: pendingTasks.length,
+          totalCount: sortedTasks.length,
           totalTimeSeconds: totalSeconds,
           totalTimeFormatted: `${hours}h ${minutes}m`,
-          currentWork: primaryActiveTask ? {
-            id: primaryActiveTask.id,
-            title: primaryActiveTask.title,
-            client: primaryActiveTask.client?.name || 'Internal',
-            environment: primaryActiveTask.environment || 'DEV',
-          } : null,
+          currentWork: primaryActiveTask
+            ? {
+                id: primaryActiveTask.id,
+                title: primaryActiveTask.title,
+                client: primaryActiveTask.client?.name || 'Internal',
+                environment: primaryActiveTask.environment || 'DEV',
+              }
+            : null,
           isAvailable: activeTasks.length === 0,
-          tasks: member.tasks,
+          tasks: sortedTasks,
         };
       })
     );

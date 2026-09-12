@@ -143,3 +143,40 @@ export function getEnvironmentBadge(env: string | null | undefined) {
       };
   }
 }
+
+export const PRIORITY_WEIGHTS: Record<string, number> = {
+  CRITICAL: 1,
+  HIGH: 2,
+  MEDIUM: 3,
+  LOW: 4,
+};
+
+export function sortByPriority<
+  T extends { priority?: string | null; createdAt?: Date | string | null; dueDate?: Date | string | null }
+>(items: T[]): T[] {
+  if (!items || !Array.isArray(items)) return [];
+  return [...items].sort((a, b) => {
+    const weightA = PRIORITY_WEIGHTS[a.priority?.toUpperCase() || ''] ?? 99;
+    const weightB = PRIORITY_WEIGHTS[b.priority?.toUpperCase() || ''] ?? 99;
+
+    if (weightA !== weightB) {
+      return weightA - weightB; // CRITICAL (1) -> HIGH (2) -> MEDIUM (3) -> LOW (4)
+    }
+
+    // Secondary sort: Due date ascending (soonest first)
+    if (a.dueDate && b.dueDate) {
+      const diffDue = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      if (diffDue !== 0) return diffDue;
+    } else if (a.dueDate && !b.dueDate) {
+      return -1;
+    } else if (!a.dueDate && b.dueDate) {
+      return 1;
+    }
+
+    // Tertiary sort: Creation date descending (newest first)
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
+  });
+}
+

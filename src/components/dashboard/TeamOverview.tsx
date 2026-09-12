@@ -73,19 +73,43 @@ export function TeamOverview({ team, onSelectTask }: TeamOverviewProps) {
                   </div>
                 </div>
 
-                {/* Status Chips */}
-                <div className="flex items-center gap-2 mt-3 text-xs">
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
-                    🟢 {member.activeCount} Active
+                {/* Status Chips - Showing All Categories */}
+                <div className="flex items-center gap-1.5 mt-3 text-[11px] flex-wrap">
+                  <span
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-semibold"
+                    title="In Progress Tasks"
+                  >
+                    🟢 {member.activeCount ?? 0} Active
                   </span>
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
-                    🟡 {member.pendingCount} Pending
+                  <span
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold"
+                    title="Waiting for Update"
+                  >
+                    🟡 {member.waitingCount ?? member.pendingCount ?? 0} Waiting
                   </span>
-                  {member.blockedCount > 0 && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 font-semibold">
-                      🔴 {member.blockedCount} Blocked
-                    </span>
-                  )}
+                  <span
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 font-semibold"
+                    title="Not Started Tasks"
+                  >
+                    ⚪ {member.notStartedCount ?? 0} Not Started
+                  </span>
+                  <span
+                    className={cn(
+                      'flex items-center gap-1 px-2 py-0.5 rounded-md border font-semibold',
+                      (member.blockedCount ?? 0) > 0
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
+                        : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                    )}
+                    title="Blocked Tasks"
+                  >
+                    🔴 {member.blockedCount ?? 0} Blocked
+                  </span>
+                  <span
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-300 border border-teal-500/20 font-semibold"
+                    title="Completed Tasks"
+                  >
+                    ✓ {member.completedCount ?? 0} Done
+                  </span>
                 </div>
 
                 {/* Current Live Work or Available Indicator */}

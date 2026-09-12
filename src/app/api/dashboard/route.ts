@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma, ensureBaselineData } from '@/lib/db';
 import { getDashboardMetrics, getFollowUpsRequired } from '@/lib/services/followUpService';
 import { syncAutomatedNotifications } from '@/lib/services/notificationService';
+import { sortByPriority } from '@/lib/utils';
 
 export async function GET() {
   try {
@@ -12,12 +13,8 @@ export async function GET() {
     const metrics = await getDashboardMetrics();
     const followUps = await getFollowUpsRequired();
 
-    // "My Work Today" - Intelligently prioritized:
-    // 1. In progress & critical
-    // 2. Waiting for update
-    // 3. Due today
-    // 4. Other active tasks
-    const todayTasks = await prisma.task.findMany({
+    // "Ongoing Tasks" - Prioritized Critical -> High -> Medium -> Low
+    const rawTodayTasks = await prisma.task.findMany({
       where: {
         status: { notIn: ['COMPLETED', 'CANCELLED'] },
       },
@@ -33,22 +30,16 @@ export async function GET() {
           where: { isRunning: true },
         },
       },
-      orderBy: [
-        { priority: 'desc' },
-        { dueDate: 'asc' },
-        { createdAt: 'desc' },
-      ],
-      take: 20,
     });
 
-    // Team Overview
+    // Sort strictly Critical -> High -> Medium -> Low -> Due Date
+    const todayTasks = sortByPriority(rawTodayTasks).slice(0, 25);
+
+    // Team Overview - Include all tasks to report every status
     const teamMembers = await prisma.teamMember.findMany({
       where: { active: true },
       include: {
         tasks: {
-          where: {
-            status: { notIn: ['COMPLETED', 'CANCELLED'] },
-          },
           include: { client: true },
         },
         timeEntries: {
@@ -63,8 +54,13 @@ export async function GET() {
 
     const teamOverview = teamMembers.map((member) => {
       const activeTasks = member.tasks.filter((t) => t.status === 'IN_PROGRESS');
-      const pendingTasks = member.tasks.filter((t) => t.status === 'NOT_STARTED' || t.status === 'WAITING_FOR_UPDATE');
+      const waitingTasks = member.tasks.filter((t) => t.status === 'WAITING_FOR_UPDATE');
+      const notStartedTasks = member.tasks.filter((t) => t.status === 'NOT_STARTED');
       const blockedTasks = member.tasks.filter((t) => t.status === 'BLOCKED');
+      const completedTasks = member.tasks.filter((t) => t.status === 'COMPLETED');
+      const pendingTasks = member.tasks.filter(
+        (t) => t.status === 'NOT_STARTED' || t.status === 'WAITING_FOR_UPDATE'
+      );
 
       const currentWork = activeTasks[0] || null;
 
@@ -88,14 +84,20 @@ export async function GET() {
         role: member.role,
         avatarColor: member.avatarColor,
         activeCount: activeTasks.length,
-        pendingCount: pendingTasks.length,
+        waitingCount: waitingTasks.length,
+        notStartedCount: notStartedTasks.length,
         blockedCount: blockedTasks.length,
-        currentWork: currentWork ? {
-          id: currentWork.id,
-          title: currentWork.title,
-          client: currentWork.client?.name || 'Internal',
-          environment: currentWork.environment,
-        } : null,
+        completedCount: completedTasks.length,
+        pendingCount: pendingTasks.length,
+        totalCount: member.tasks.length,
+        currentWork: currentWork
+          ? {
+              id: currentWork.id,
+              title: currentWork.title,
+              client: currentWork.client?.name || 'Internal',
+              environment: currentWork.environment,
+            }
+          : null,
         timeToday: formattedTime,
         isAvailable: activeTasks.length === 0,
       };

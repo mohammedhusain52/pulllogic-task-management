@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { createTask } from '@/lib/services/taskService';
+import { sortByPriority } from '@/lib/utils';
 
 export async function GET(req: NextRequest) {
   try {
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest) {
       ],
     });
 
-    return NextResponse.json(tasks);
+    return NextResponse.json(sortByPriority(tasks));
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
