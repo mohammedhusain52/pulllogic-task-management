@@ -13,6 +13,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import confetti from 'canvas-confetti';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 interface QuickAddModalProps {
   isOpen: boolean;
@@ -336,11 +338,10 @@ export function QuickAddModal({
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Due Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500"
+                    onChange={setDueDate}
+                    placeholder="YYYY-MM-DD"
                   />
                 </div>
               </div>
@@ -403,11 +404,11 @@ export function QuickAddModal({
                       <label className="block text-[11px] font-semibold text-amber-200 mb-1">
                         Follow-up Date
                       </label>
-                      <input
-                        type="date"
+                      <DatePicker
                         value={followUpDate}
-                        onChange={(e) => setFollowUpDate(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-amber-500/30 text-white text-xs"
+                        onChange={setFollowUpDate}
+                        placeholder="YYYY-MM-DD"
+                        inputClassName="py-1.5 text-xs bg-slate-950 border-amber-500/30"
                       />
                     </div>
                     <div>

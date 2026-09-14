@@ -38,6 +38,7 @@ import {
   getEnvironmentBadge,
   sortByPriority,
 } from '@/lib/utils';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -177,6 +178,24 @@ export default function CalendarPage() {
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
+            </div>
+
+            {/* Jump to Date Picker */}
+            <div className="w-36 sm:w-44">
+              <DatePicker
+                value={format(currentDate, 'yyyy-MM-dd')}
+                onChange={(val) => {
+                  if (val) {
+                    const parsed = new Date(val);
+                    if (!isNaN(parsed.getTime())) {
+                      setCurrentDate(parsed);
+                    }
+                  }
+                }}
+                placeholder="Jump to date..."
+                inputClassName="py-1.5 text-xs bg-slate-900 border-white/10"
+                align="right"
+              />
             </div>
           </div>
         </div>

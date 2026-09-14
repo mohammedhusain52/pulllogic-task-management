@@ -35,6 +35,7 @@ import {
   cn,
 } from '@/lib/utils';
 import confetti from 'canvas-confetti';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 interface TaskDetailDrawerProps {
   taskId: string | null;
@@ -911,13 +912,54 @@ export function TaskDetailDrawer({
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
                     Due Date
                   </label>
-                  <input
-                    type="date"
-                    value={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
-                    onChange={(e) => updateField({ dueDate: e.target.value ? new Date(e.target.value) : null })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-white text-xs font-semibold"
+                  <DatePicker
+                    value={task.dueDate}
+                    onChange={(val) => updateField({ dueDate: val ? new Date(val) : null })}
+                    placeholder="YYYY-MM-DD"
+                    inputClassName="bg-slate-900 text-xs font-semibold py-2"
                   />
                 </div>
+
+                {/* Follow-up / Waiting details (if Waiting for update) */}
+                {task.status === 'WAITING_FOR_UPDATE' && (
+                  <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/20 space-y-2.5">
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-amber-300 mb-1">
+                        Waiting For
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Bhavish, QA Team"
+                        value={task.waitingForName || ''}
+                        onChange={(e) => updateField({ waitingForName: e.target.value })}
+                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-amber-500/30 text-white text-xs font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-amber-300 mb-1">
+                        Waiting Reason
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Reason for waiting..."
+                        value={task.waitingReason || ''}
+                        onChange={(e) => updateField({ waitingReason: e.target.value })}
+                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-amber-500/30 text-white text-xs font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-amber-300 mb-1">
+                        Follow-up Date
+                      </label>
+                      <DatePicker
+                        value={task.followUpDate}
+                        onChange={(val) => updateField({ followUpDate: val ? new Date(val) : null })}
+                        placeholder="YYYY-MM-DD"
+                        inputClassName="bg-slate-900 text-xs font-semibold py-1.5 border-amber-500/30"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Time Summary */}
                 <div className="p-3.5 rounded-xl bg-slate-900 border border-white/10 space-y-2 text-xs">
