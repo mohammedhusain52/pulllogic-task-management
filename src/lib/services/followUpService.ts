@@ -31,6 +31,7 @@ export async function getFollowUpsRequired() {
       client: true,
       assignee: true,
       workflowRun: true,
+      stage: true,
     },
   });
 

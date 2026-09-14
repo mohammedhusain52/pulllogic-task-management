@@ -79,7 +79,7 @@ export function FollowUpSection({
           const isBlocked = task.status === 'BLOCKED';
           const isCritical = task.priority === 'CRITICAL';
           const isWaiting = task.status === 'WAITING_FOR_UPDATE';
-          const stageProgression = task.workflowRun ? `${task.environment || 'DEV'} → QA` : null;
+          const currentStage = task.stage?.name || task.environment || 'DEV';
 
           return (
             <div
@@ -168,8 +168,8 @@ export function FollowUpSection({
                   <span className="text-[10px] uppercase font-semibold text-slate-400 block">
                     Stage
                   </span>
-                  <span className="font-mono text-slate-300">
-                    {stageProgression || task.environment || 'DEV'}
+                  <span className="font-mono text-slate-300 font-semibold">
+                    {currentStage}
                   </span>
                 </div>
 
