@@ -208,6 +208,11 @@ export async function updateTask(id: string, updates: Partial<CreateTaskInput> &
   if (updates.targetRelease !== undefined) data.targetRelease = updates.targetRelease;
   if (updates.requirements !== undefined) data.requirements = updates.requirements;
   if (updates.totalTimeSeconds !== undefined) data.totalTimeSeconds = updates.totalTimeSeconds;
+  if (updates.waitingForType !== undefined) data.waitingForType = updates.waitingForType;
+  if (updates.waitingForName !== undefined) data.waitingForName = updates.waitingForName;
+  if (updates.waitingReason !== undefined) data.waitingReason = updates.waitingReason;
+  if (updates.followUpDate !== undefined) data.followUpDate = updates.followUpDate ? new Date(updates.followUpDate) : null;
+  if (updates.blockReason !== undefined) data.blockReason = updates.blockReason;
 
   const updated = await prisma.task.update({
     where: { id },

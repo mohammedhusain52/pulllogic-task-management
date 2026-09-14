@@ -925,14 +925,31 @@ export function TaskDetailDrawer({
                   <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/20 space-y-2.5">
                     <div>
                       <label className="block text-[10px] font-semibold uppercase tracking-wider text-amber-300 mb-1">
+                        Waiting Type
+                      </label>
+                      <select
+                        value={task.waitingForType || 'OTHER'}
+                        onChange={(e) => updateField({ waitingForType: e.target.value })}
+                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-amber-500/30 text-white text-xs font-medium focus:outline-none focus:border-amber-400"
+                      >
+                        <option value="TESTING_TEAM">Testing Team</option>
+                        <option value="CLIENT">Client</option>
+                        <option value="TEAM_MEMBER">Team Member</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-amber-300 mb-1">
                         Waiting For
                       </label>
                       <input
                         type="text"
                         placeholder="e.g. Bhavish, QA Team"
                         value={task.waitingForName || ''}
-                        onChange={(e) => updateField({ waitingForName: e.target.value })}
-                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-amber-500/30 text-white text-xs font-medium"
+                        onChange={(e) => setTask({ ...task, waitingForName: e.target.value })}
+                        onBlur={() => updateField({ waitingForName: task.waitingForName })}
+                        onKeyDown={(e) => e.key === 'Enter' && updateField({ waitingForName: task.waitingForName })}
+                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-amber-500/30 text-white text-xs font-medium focus:outline-none focus:border-amber-400"
                       />
                     </div>
                     <div>
@@ -943,8 +960,10 @@ export function TaskDetailDrawer({
                         type="text"
                         placeholder="Reason for waiting..."
                         value={task.waitingReason || ''}
-                        onChange={(e) => updateField({ waitingReason: e.target.value })}
-                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-amber-500/30 text-white text-xs font-medium"
+                        onChange={(e) => setTask({ ...task, waitingReason: e.target.value })}
+                        onBlur={() => updateField({ waitingReason: task.waitingReason })}
+                        onKeyDown={(e) => e.key === 'Enter' && updateField({ waitingReason: task.waitingReason })}
+                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-amber-500/30 text-white text-xs font-medium focus:outline-none focus:border-amber-400"
                       />
                     </div>
                     <div>
@@ -958,6 +977,24 @@ export function TaskDetailDrawer({
                         inputClassName="bg-slate-900 text-xs font-semibold py-1.5 border-amber-500/30"
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* Blocker Reason (if Blocked) */}
+                {task.status === 'BLOCKED' && (
+                  <div className="p-3 rounded-xl bg-rose-950/20 border border-rose-500/20 space-y-2">
+                    <label className="block text-[10px] font-semibold uppercase tracking-wider text-rose-300">
+                      Blocker Reason
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Reason why task is blocked..."
+                      value={task.blockReason || ''}
+                      onChange={(e) => setTask({ ...task, blockReason: e.target.value })}
+                      onBlur={() => updateField({ blockReason: task.blockReason })}
+                      onKeyDown={(e) => e.key === 'Enter' && updateField({ blockReason: task.blockReason })}
+                      className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-rose-500/30 text-white text-xs font-medium focus:outline-none focus:border-rose-400"
+                    />
                   </div>
                 )}
 
